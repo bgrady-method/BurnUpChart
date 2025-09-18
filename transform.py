@@ -306,27 +306,15 @@ class DataTransformer:
                     completion_date <= week_end):
                     done_sp += issue.story_points
             
-            # Calculate remaining categories based on current status for issues in scope
-            in_flight_sp = sum(
-                issue.story_points 
-                for issue in issues 
-                if (issue.created_day and issue.created_day <= week_end and 
-                    issue.status in in_flight_statuses)
-            )
+            # Calculate work in progress: total scope minus done (remaining work)
+            # Note: This shows remaining work as of week_end, not historical status breakdown
+            remaining_sp = total_sp - done_sp
             
-            not_started_sp = sum(
-                issue.story_points 
-                for issue in issues 
-                if (issue.created_day and issue.created_day <= week_end and 
-                    issue.status in not_started_statuses)
-            )
-            
-            blocked_sp = sum(
-                issue.story_points 
-                for issue in issues 
-                if (issue.created_day and issue.created_day <= week_end and 
-                    issue.status in blocked_statuses)
-            )
+            # For now, we can only accurately show Done vs Remaining
+            # Historical status breakdown would require full changelog analysis
+            in_flight_sp = remaining_sp  # All remaining work considered "in flight"
+            not_started_sp = 0.0  # Cannot accurately determine historical "not started" 
+            blocked_sp = 0.0  # Cannot accurately determine historical "blocked"
             
             # Calculate target by due dates: issues that should be done by week_end based on due dates
             # Only count issues due within our analysis window (>= t0)

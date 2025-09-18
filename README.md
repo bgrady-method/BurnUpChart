@@ -34,7 +34,7 @@ A sophisticated Streamlit web application that analyzes Jira project data to vis
 ### Prerequisites
 - Python 3.11+
 - Access to Jira instance (or use included golden dataset)
-- MCP Atlassian server (optional for live data)
+- MCP Atlassian server (optional for live data) OR local Jira credentials
 
 ### Installation
 
@@ -49,6 +49,32 @@ pip install -r requirements.txt
 # Run the application
 streamlit run app.py
 ```
+
+### Configuration Options
+
+#### Option 1: Using Golden Dataset (No Setup Required)
+The application includes a curated golden dataset that works out of the box for testing and demonstration purposes.
+
+#### Option 2: MCP Atlassian Server (Preferred for Live Data)
+Configure the MCP Atlassian server for real-time Jira data access through the MCP protocol.
+
+#### Option 3: Direct Jira Access (Self-Contained Fallback)
+Set up environment variables for direct Jira API access:
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your Jira credentials
+JIRA_URL=https://your-instance.atlassian.net
+JIRA_USERNAME=your.email@company.com  
+JIRA_API_TOKEN=your-api-token
+```
+
+The application will automatically detect available connection methods and use the best option available:
+1. MCP Server (if configured)
+2. Local Jira fallback (if credentials provided)
+3. Golden dataset (always available)
 
 ### First Time Setup
 
