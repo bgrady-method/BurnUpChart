@@ -73,9 +73,11 @@ def create_scope_completed_chart(daily_series: List[DailyPoint], t0: date, t1: d
         hovertemplate='<b>%{fullData.name}</b><br>' +
                       'Date: %{x}<br>' +
                       'Value: %{y:.1f}<br>' +
+                      'Target: %{text:.1f}<br>' +
                       'Δ: %{customdata:.1f}<br>' +
                       '<extra></extra>',
-        customdata=completed_deltas
+        customdata=completed_deltas,
+        text=target_values
     ))
     
     # Add ideal schedule line (from 0 at start to max_scope at end)
@@ -192,6 +194,20 @@ def render_sidebar_controls(config: AppConfig, catalogs: FieldCatalogs) -> AppCo
             value=config.cache_raw,
             key="ctl_cache",
             help="Speeds up filtering and recomputation"
+        )
+        
+        # Combine common target statuses with actual statuses from data
+        common_targets = ["Done", "Done Dev", "Closed", "Resolved"]
+        available_statuses = list(catalogs.statuses) if catalogs.statuses else []
+        # Add common targets that aren't already in the list
+        all_status_options = common_targets + [s for s in available_statuses if s not in common_targets]
+        
+        target_status = st.selectbox(
+            "Target Status for Completion",
+            options=all_status_options,
+            index=all_status_options.index(config.target_status) if config.target_status in all_status_options else 0,
+            key="ctl_target_status",
+            help="Track completion when issues first transition to this status"
         )
         
         fetch_clicked = st.button("🔄 Fetch / Refresh", key="btn_fetch", type="primary")
