@@ -6,6 +6,11 @@ A sophisticated Streamlit web application that analyzes Jira project data to vis
 
 ## 🎯 Key Features
 
+### 🔐 **Secure Access**
+- **Password protection**: Secure authentication system using bcrypt
+- **Session management**: Browser-based authentication with logout functionality
+- **Environment configuration**: Simple setup via environment variables
+
 ### 📊 **Precise Visualization**
 - **Strict axis locks**: X-axis locked to max Due date, Y-axis locked to max Scope
 - **Interactive charts** with hover details showing day-over-day deltas
@@ -76,12 +81,25 @@ The application will automatically detect available connection methods and use t
 2. Local Jira fallback (if credentials provided)
 3. Golden dataset (always available)
 
+### Authentication Setup
+
+**Important**: The application now requires authentication. Set up your password before first use:
+
+```bash
+# Edit .env file and set your password
+APP_PASSWORD=MySecurePassword123!
+```
+
+Replace `MySecurePassword123!` with a strong, unique password. See [AUTH_README.md](AUTH_README.md) for detailed authentication documentation.
+
 ### First Time Setup
 
-1. **Launch the app**: `streamlit run app.py`
-2. **Use golden dataset**: Click "Fetch / Refresh" (uses PL-54667 epic data by default)
-3. **Explore the data**: Use filters in the sidebar to refine your analysis
-4. **Export results**: Download charts and data using the export buttons
+1. **Set authentication**: Configure `APP_PASSWORD` in your `.env` file
+2. **Launch the app**: `streamlit run app.py`
+3. **Login**: Enter your configured password when prompted
+4. **Use golden dataset**: Click "Fetch / Refresh" (uses PL-54667 epic data by default)
+5. **Explore the data**: Use filters in the sidebar to refine your analysis
+6. **Export results**: Download charts and data using the export buttons
 
 ## 📋 Golden Dataset
 

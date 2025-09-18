@@ -14,6 +14,7 @@ from ui_helpers import (
     create_download_button, render_validation_report, render_empty_state,
     export_chart_png, render_help_modal
 )
+import auth
 
 # Page configuration
 st.set_page_config(
@@ -380,6 +381,10 @@ def reset_filters():
 
 def main():
     """Main application function."""
+    # Authentication check - must be first
+    if not auth.check_password():
+        return
+    
     initialize_session_state()
     
     # Page header
@@ -388,6 +393,9 @@ def main():
     
     # Help button
     render_help_modal()
+    
+    # Add logout button to sidebar
+    auth.render_logout_button()
     
     # Sidebar controls
     config, fetch_clicked, apply_clicked, reset_clicked = render_sidebar_controls(

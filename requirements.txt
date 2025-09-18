@@ -8,6 +8,7 @@ requests>=2.31.0
 mcp>=1.0.0
 kaleido>=0.2.1
 python-dotenv>=1.0.0
+bcrypt>=4.0.0
 # Dependencies for local MCP Atlassian fallback
 atlassian-python-api>=4.0.0
 beautifulsoup4>=4.12.0
