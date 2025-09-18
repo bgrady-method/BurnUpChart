@@ -46,7 +46,7 @@ class AppConfig(BaseModel):
     t0_override: Optional[date] = date(2025, 9, 9)  # September 9th
     t1_override: Optional[date] = date(2025, 11, 11)  # November 11th
     t1_fallback: str = "Max Done"  # Options: "Max Done", "Max Created", "Today"
-    target_status: str = "Done"  # Target status to track completion
+    target_status: str = "Done Dev"  # Target status to track completion
     done_statuses: List[str] = Field(default_factory=list)
     removed_statuses: List[str] = Field(default_factory=list)
     subtract_removed: bool = False

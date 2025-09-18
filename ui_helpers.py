@@ -197,7 +197,7 @@ def render_sidebar_controls(config: AppConfig, catalogs: FieldCatalogs) -> AppCo
         )
         
         # Combine common target statuses with actual statuses from data
-        common_targets = ["Done", "Done Dev", "Closed", "Resolved"]
+        common_targets = ["Done Dev", "Done", "Closed", "Resolved"]
         available_statuses = list(catalogs.statuses) if catalogs.statuses else []
         # Add common targets that aren't already in the list
         all_status_options = common_targets + [s for s in available_statuses if s not in common_targets]
