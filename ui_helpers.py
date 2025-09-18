@@ -6,6 +6,7 @@ import plotly.express as px
 import pandas as pd
 import streamlit as st
 from models import DailyPoint, ComputeResults, AppConfig, FieldCatalogs
+from cache_manager import cache_manager
 
 
 def create_scope_completed_chart(daily_series: List[DailyPoint], t0: date, t1: date, max_scope: float) -> go.Figure:
@@ -171,6 +172,49 @@ def render_sidebar_controls(config: AppConfig, catalogs: FieldCatalogs) -> AppCo
     """Render all sidebar controls and return updated config."""
     st.sidebar.title("Controls")
     
+    # Cache Status section
+    with st.sidebar.expander("💾 Cache Status", expanded=False):
+        cache_info = cache_manager.get_cache_info()
+        
+        if cache_info.get("available"):
+            remaining_hours = cache_info.get("remaining_hours", 0)
+            age_hours = cache_info.get("age_hours", 0)
+            
+            if remaining_hours > 0:
+                st.success(f"✅ Cache valid: {remaining_hours:.1f}h remaining")
+                st.caption(f"Data cached {age_hours:.1f}h ago")
+            else:
+                st.warning("⚠️ Cache expired")
+        else:
+            st.info("ℹ️ No cached data available")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("🗑️ Clear Cache", key="btn_clear_cache"):
+                cache_manager.clear_cache()
+                st.rerun()
+        with col2:
+            if st.button("🔄 Reload Cache", key="btn_reload_cache"):
+                cached_data = cache_manager.load_from_cache()
+                if cached_data:
+                    # Load cached data into session state (same as in app.py)
+                    if cached_data.get('config'):
+                        st.session_state.current_config = cached_data['config']
+                    if cached_data.get('raw_issues'):
+                        st.session_state.raw_issues = cached_data['raw_issues']
+                    if cached_data.get('normalized_issues'):
+                        st.session_state.normalized_issues = cached_data['normalized_issues']
+                    if cached_data.get('field_catalogs'):
+                        st.session_state.field_catalogs = cached_data['field_catalogs']
+                    if cached_data.get('compute_results'):
+                        st.session_state.compute_results = cached_data['compute_results']
+                    
+                    st.session_state.fetch_error = ""
+                    st.success("📦 Cache reloaded")
+                    st.rerun()
+                else:
+                    st.error("No valid cache to reload")
+
     # Data Source section
     with st.sidebar.expander("📊 Data Source", expanded=True):
         jql = st.text_area(

@@ -15,6 +15,7 @@ from ui_helpers import (
     export_chart_png, render_help_modal
 )
 import auth
+from cache_manager import cache_manager
 
 # Page configuration
 st.set_page_config(
@@ -51,9 +52,69 @@ def initialize_session_state():
     if "show_help" not in st.session_state:
         st.session_state.show_help = False
     
+    if "auto_loaded" not in st.session_state:
+        st.session_state.auto_loaded = False
+    
     # Set up MCP call function for fetch module
     if "mcp_call_function" not in st.session_state:
         st.session_state.mcp_call_function = call_mcp_tool
+
+def load_cached_data():
+    """Load data from cache if available and valid."""
+    cached_data = cache_manager.load_from_cache()
+    
+    if cached_data:
+        # Load cached data into session state
+        if cached_data.get('config'):
+            st.session_state.current_config = cached_data['config']
+        
+        if cached_data.get('raw_issues'):
+            st.session_state.raw_issues = cached_data['raw_issues']
+        
+        if cached_data.get('normalized_issues'):
+            st.session_state.normalized_issues = cached_data['normalized_issues']
+        
+        if cached_data.get('field_catalogs'):
+            st.session_state.field_catalogs = cached_data['field_catalogs']
+        
+        if cached_data.get('compute_results'):
+            st.session_state.compute_results = cached_data['compute_results']
+        
+        st.session_state.fetch_error = ""
+        st.session_state.auto_loaded = True
+        
+        # Show cache info
+        cache_info = cache_manager.get_cache_info()
+        if cache_info.get('available'):
+            remaining_hours = cache_info.get('remaining_hours', 0)
+            st.toast(f"📦 Loaded cached data ({remaining_hours:.1f}h remaining)", icon="✅")
+        
+        return True
+    
+    return False
+
+def auto_fetch_on_first_load():
+    """Automatically fetch data on first page load if no cache is available."""
+    if not st.session_state.auto_loaded:
+        # Try to load from cache first
+        if load_cached_data():
+            return
+        
+        # If no valid cache, auto-fetch data
+        st.session_state.auto_loaded = True
+        
+        # Show loading message
+        with st.spinner("🔄 Auto-loading fresh data..."):
+            if fetch_jira_data(st.session_state.current_config):
+                compute_analysis(st.session_state.current_config)
+                # Save to cache after successful fetch
+                cache_manager.save_to_cache(
+                    st.session_state.current_config,
+                    st.session_state.raw_issues,
+                    st.session_state.normalized_issues,
+                    st.session_state.field_catalogs,
+                    st.session_state.compute_results
+                )
 
 def call_mcp_tool(server_name: str, tool_name: str, arguments: Dict[str, Any]) -> Any:
     """Call MCP tool using Streamlit's interface with local fallback."""
@@ -329,6 +390,15 @@ def fetch_jira_data(config: AppConfig) -> bool:
             st.session_state.field_catalogs = jira_fetcher.build_field_catalogs(normalized_issues)
             st.session_state.fetch_error = ""
             
+            # Save to cache
+            cache_manager.save_to_cache(
+                config,
+                enriched_issues,
+                normalized_issues,
+                st.session_state.field_catalogs,
+                st.session_state.compute_results
+            )
+            
             # Show success toast
             duration = (datetime.now() - start_time).total_seconds()
             st.toast(f"📡 Fetched {len(normalized_issues)} LIVE issues in {duration:.1f}s", icon="✅")
@@ -386,6 +456,9 @@ def main():
         return
     
     initialize_session_state()
+    
+    # Auto-load data on first page load
+    auto_fetch_on_first_load()
     
     # Page header
     st.title("Scope vs Completed — Jira History")
