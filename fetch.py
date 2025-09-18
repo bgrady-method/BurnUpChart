@@ -24,11 +24,18 @@ class JiraFetcher:
         # Initialize local Jira fallback if available
         if LOCAL_JIRA_AVAILABLE:
             try:
-                self.local_jira = LocalJiraFetcher()
+                # Try to initialize with credentials required for proper initialization
+                self.local_jira = LocalJiraFetcher(require_credentials=True)
                 print("Local Jira fallback initialized successfully")
             except Exception as e:
                 print(f"Failed to initialize local Jira fallback: {e}")
-                self.local_jira = None
+                # Try without requiring credentials for graceful degradation
+                try:
+                    self.local_jira = LocalJiraFetcher(require_credentials=False)
+                    print("Local Jira fallback initialized without credentials check")
+                except Exception as e2:
+                    print(f"Failed to initialize local Jira fallback even without credentials: {e2}")
+                    self.local_jira = None
     
     def _call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
         """Call MCP tool and return parsed response."""

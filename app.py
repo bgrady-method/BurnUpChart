@@ -99,6 +99,13 @@ def call_local_jira_fallback(tool_name: str, arguments: Dict[str, Any]) -> Any:
         
         # Test Jira connection before running queries
         try:
+            # Check if the local_jira instance exists and has proper initialization
+            if not local_jira:
+                raise Exception("Local Jira fallback is not available")
+                
+            # Ensure initialization before testing
+            local_jira._ensure_initialized()
+            
             # Try to access Jira info to verify connection
             if hasattr(local_jira, 'jira') and local_jira.jira:
                 jira_client = local_jira.jira
@@ -106,10 +113,12 @@ def call_local_jira_fallback(tool_name: str, arguments: Dict[str, Any]) -> Any:
                 # Test basic connection with myself()
                 try:
                     myself = jira_client.myself()
+                    print(f"✅ Jira connection verified for user: {myself.get('displayName', 'Unknown')}")
                 except Exception as auth_error:
                     # Try a simpler test - just get server info
                     try:
                         projects = jira_client.projects()
+                        print(f"✅ Jira connection verified - found {len(projects)} projects")
                     except Exception as projects_error:
                         raise Exception(f"Jira authentication failed: {str(auth_error)}")
             else:
