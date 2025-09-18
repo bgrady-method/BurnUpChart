@@ -249,6 +249,110 @@ class DataTransformer:
             })
         
         return pd.DataFrame(data)
+    
+    def generate_weekly_status_table(self, issues: List[JiraIssue], t0: date, t1: date, config: AppConfig) -> pd.DataFrame:
+        """Generate weekly status breakdown table respecting start date filtering."""
+        from datetime import timedelta
+        import math
+        
+        # Define status categories
+        done_statuses = {"Done", "Closed", "Resolved"}
+        in_flight_statuses = {"In Analysis", "Done Analysis", "Done Dev", "In Test", "Done Test", "Ready to Deploy", "In Dev", "To Review"}
+        not_started_statuses = {"To Do", "Ready For Development", "Ready for grooming", "Ready for Grooming"}
+        blocked_statuses = {"Blocked", "On Hold"}
+        
+        # Calculate total weeks from t0 to t1
+        total_days = (t1 - t0).days
+        total_weeks = math.ceil(total_days / 7)
+        
+        weekly_data = []
+        
+        for week_num in range(1, total_weeks + 1):
+            week_start = t0 + timedelta(days=(week_num - 1) * 7)
+            week_end = min(week_start + timedelta(days=6), t1)
+            
+            # Calculate scope: issues created by week_end (like daily series)
+            total_sp = sum(
+                issue.story_points 
+                for issue in issues 
+                if issue.created_day and issue.created_day <= week_end
+            )
+            
+            # Calculate done: issues completed by week_end but after t0 (respecting baseline)
+            done_sp = 0.0
+            for issue in issues:
+                if not (issue.created_day and issue.created_day <= week_end):
+                    continue
+                    
+                completion_date = None
+                
+                # Use same logic as daily series for completion detection
+                if (config.target_status and 
+                    config.target_status in issue.target_status_transitions):
+                    completion_date = issue.target_status_transitions[config.target_status]
+                elif issue.done_day:
+                    completion_date = issue.done_day
+                elif config.done_statuses:
+                    for done_status in config.done_statuses:
+                        if done_status in issue.target_status_transitions:
+                            transition_date = issue.target_status_transitions[done_status]
+                            if transition_date and (not completion_date or transition_date < completion_date):
+                                completion_date = transition_date
+                            break
+                
+                # Count as done if completed within time window and after t0
+                if (completion_date and 
+                    completion_date >= t0 and 
+                    completion_date <= week_end):
+                    done_sp += issue.story_points
+            
+            # Calculate remaining categories based on current status for issues in scope
+            in_flight_sp = sum(
+                issue.story_points 
+                for issue in issues 
+                if (issue.created_day and issue.created_day <= week_end and 
+                    issue.status in in_flight_statuses)
+            )
+            
+            not_started_sp = sum(
+                issue.story_points 
+                for issue in issues 
+                if (issue.created_day and issue.created_day <= week_end and 
+                    issue.status in not_started_statuses)
+            )
+            
+            blocked_sp = sum(
+                issue.story_points 
+                for issue in issues 
+                if (issue.created_day and issue.created_day <= week_end and 
+                    issue.status in blocked_statuses)
+            )
+            
+            # Calculate target by due dates: issues that should be done by week_end based on due dates
+            # Only count issues due within our analysis window (>= t0)
+            target_by_due_sp = sum(
+                issue.story_points 
+                for issue in issues 
+                if (issue.created_day and issue.created_day <= week_end and
+                    issue.due_day and issue.due_day >= t0 and issue.due_day <= week_end)
+            )
+            
+            # Calculate percentage done
+            percent_done = (done_sp / total_sp * 100) if total_sp > 0 else 0
+            
+            weekly_data.append({
+                "Week #": week_num,
+                "Week End Date": week_end.strftime("%Y-%m-%d"),
+                "Total SP": round(total_sp, 1),
+                "Done": round(done_sp, 1),
+                "Target by Due Date": round(target_by_due_sp, 1),
+                "In Flight": round(in_flight_sp, 1),
+                "Not Started": round(not_started_sp, 1),
+                "Blocked": round(blocked_sp, 1),
+                "% Done": round(percent_done, 1)
+            })
+        
+        return pd.DataFrame(weekly_data)
 
 
 # Singleton instance
