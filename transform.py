@@ -145,23 +145,39 @@ class DataTransformer:
             for issue in issues:
                 completion_date = None
                 
-                # Primary: Use transition date to target_status
+                # Strategy: Find the earliest completion date from multiple workflow paths
+                completion_candidates = []
+                
+                # Option 1: Specific target_status transition (e.g., "Done Dev")
                 if (config.target_status and 
                     config.target_status in issue.target_status_transitions):
-                    completion_date = issue.target_status_transitions[config.target_status]
+                    target_date = issue.target_status_transitions[config.target_status]
+                    if target_date:
+                        completion_candidates.append(target_date)
                 
-                # Fallback 1: Use done_day if available
-                elif issue.done_day:
-                    completion_date = issue.done_day
-                
-                # Fallback 2: Check transitions to any done_statuses
-                elif config.done_statuses:
+                # Option 2: Any configured done_statuses transitions
+                if config.done_statuses:
                     for done_status in config.done_statuses:
                         if done_status in issue.target_status_transitions:
                             transition_date = issue.target_status_transitions[done_status]
-                            if transition_date and (not completion_date or transition_date < completion_date):
-                                completion_date = transition_date
-                            break
+                            if transition_date:
+                                completion_candidates.append(transition_date)
+                
+                # Option 3: Generic done_day fallback
+                if issue.done_day:
+                    completion_candidates.append(issue.done_day)
+                
+                # Option 4: Common completion statuses (broader fallback for different workflows)
+                common_completion_statuses = ["Done", "Closed", "Resolved", "Complete", "Completed"]
+                for status in common_completion_statuses:
+                    if status in issue.target_status_transitions:
+                        transition_date = issue.target_status_transitions[status]
+                        if transition_date:
+                            completion_candidates.append(transition_date)
+                
+                # Use the earliest completion date found
+                if completion_candidates:
+                    completion_date = min(completion_candidates)
                 
                 # Only count if completed within time window and in scope by current_date
                 if (completion_date and 
@@ -286,19 +302,39 @@ class DataTransformer:
                     
                 completion_date = None
                 
-                # Use same logic as daily series for completion detection
+                # Use same improved logic as daily series for completion detection
+                completion_candidates = []
+                
+                # Option 1: Specific target_status transition (e.g., "Done Dev")
                 if (config.target_status and 
                     config.target_status in issue.target_status_transitions):
-                    completion_date = issue.target_status_transitions[config.target_status]
-                elif issue.done_day:
-                    completion_date = issue.done_day
-                elif config.done_statuses:
+                    target_date = issue.target_status_transitions[config.target_status]
+                    if target_date:
+                        completion_candidates.append(target_date)
+                
+                # Option 2: Any configured done_statuses transitions
+                if config.done_statuses:
                     for done_status in config.done_statuses:
                         if done_status in issue.target_status_transitions:
                             transition_date = issue.target_status_transitions[done_status]
-                            if transition_date and (not completion_date or transition_date < completion_date):
-                                completion_date = transition_date
-                            break
+                            if transition_date:
+                                completion_candidates.append(transition_date)
+                
+                # Option 3: Generic done_day fallback
+                if issue.done_day:
+                    completion_candidates.append(issue.done_day)
+                
+                # Option 4: Common completion statuses (broader fallback for different workflows)
+                common_completion_statuses = ["Done", "Closed", "Resolved", "Complete", "Completed"]
+                for status in common_completion_statuses:
+                    if status in issue.target_status_transitions:
+                        transition_date = issue.target_status_transitions[status]
+                        if transition_date:
+                            completion_candidates.append(transition_date)
+                
+                # Use the earliest completion date found
+                if completion_candidates:
+                    completion_date = min(completion_candidates)
                 
                 # Count as done if completed within time window and after t0
                 if (completion_date and 

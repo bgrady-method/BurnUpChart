@@ -55,9 +55,44 @@ def initialize_session_state():
     if "auto_loaded" not in st.session_state:
         st.session_state.auto_loaded = False
     
+    # JavaScript execution counter for cache manager
+    if "js_exec_counter" not in st.session_state:
+        st.session_state.js_exec_counter = 0
+    
+    # Cache-related warning flags to prevent spam
+    if "localStorage_warning_shown" not in st.session_state:
+        st.session_state.localStorage_warning_shown = False
+    
+    if "cache_success_shown" not in st.session_state:
+        st.session_state.cache_success_shown = False
+    
     # Set up MCP call function for fetch module
     if "mcp_call_function" not in st.session_state:
         st.session_state.mcp_call_function = call_mcp_tool
+
+def increment_js_counter() -> int:
+    """Safely increment JavaScript execution counter and return new value."""
+    if "js_exec_counter" not in st.session_state:
+        st.session_state.js_exec_counter = 0
+    
+    st.session_state.js_exec_counter += 1
+    return st.session_state.js_exec_counter
+
+def set_localStorage_warning_shown():
+    """Mark localStorage warning as shown to prevent spam."""
+    st.session_state.localStorage_warning_shown = True
+
+def set_cache_success_shown():
+    """Mark cache success message as shown to prevent spam."""
+    st.session_state.cache_success_shown = True
+
+def get_localStorage_warning_shown() -> bool:
+    """Check if localStorage warning has been shown."""
+    return st.session_state.get("localStorage_warning_shown", False)
+
+def get_cache_success_shown() -> bool:
+    """Check if cache success message has been shown."""
+    return st.session_state.get("cache_success_shown", False)
 
 def load_cached_data():
     """Load data from cache if available and valid."""
@@ -65,8 +100,11 @@ def load_cached_data():
     
     if cached_data:
         # Load cached data into session state
-        if cached_data.get('config'):
-            st.session_state.current_config = cached_data['config']
+        current_config = st.session_state.current_config
+        cached_config = cached_data.get('config')
+        
+        if cached_config:
+            st.session_state.current_config = cached_config
         
         if cached_data.get('raw_issues'):
             st.session_state.raw_issues = cached_data['raw_issues']
@@ -77,7 +115,31 @@ def load_cached_data():
         if cached_data.get('field_catalogs'):
             st.session_state.field_catalogs = cached_data['field_catalogs']
         
-        if cached_data.get('compute_results'):
+        # Check for config changes that invalidate cached results
+        needs_recompute = False
+        if cached_config and cached_data.get('compute_results'):
+            # Check if target_status has changed from what was used to compute cached results
+            if current_config.target_status != cached_config.target_status:
+                st.warning(f"🔄 Target status changed from '{cached_config.target_status}' to '{current_config.target_status}' - recomputing results")
+                needs_recompute = True
+                # Use current config instead of cached config for the new target_status
+                st.session_state.current_config = current_config
+            
+            # Check other critical settings that affect computation
+            if (current_config.done_statuses != cached_config.done_statuses or
+                current_config.subtract_removed != cached_config.subtract_removed or
+                current_config.t0_override != cached_config.t0_override or
+                current_config.t1_override != cached_config.t1_override):
+                st.info("🔄 Configuration changed - recomputing results")
+                needs_recompute = True
+                st.session_state.current_config = current_config
+        
+        if needs_recompute:
+            # Use cached issues but recompute results with current config
+            if compute_analysis(st.session_state.current_config):
+                st.toast("📊 Results recomputed with new settings", icon="✅")
+        elif cached_data.get('compute_results'):
+            # Use cached results only if config is consistent
             st.session_state.compute_results = cached_data['compute_results']
         
         st.session_state.fetch_error = ""
@@ -87,7 +149,8 @@ def load_cached_data():
         cache_info = cache_manager.get_cache_info()
         if cache_info.get('available'):
             remaining_hours = cache_info.get('remaining_hours', 0)
-            st.toast(f"📦 Loaded cached data ({remaining_hours:.1f}h remaining)", icon="✅")
+            if not needs_recompute:
+                st.toast(f"📦 Loaded cached data ({remaining_hours:.1f}h remaining)", icon="✅")
         
         return True
     
@@ -390,7 +453,7 @@ def fetch_jira_data(config: AppConfig) -> bool:
             st.session_state.field_catalogs = jira_fetcher.build_field_catalogs(normalized_issues)
             st.session_state.fetch_error = ""
             
-            # Save to cache
+            # Save to cache after successful fetch
             cache_manager.save_to_cache(
                 config,
                 enriched_issues,

@@ -33,9 +33,8 @@ class CacheManager:
             'compute_results': 'burndown_cache_compute_results',
             'timestamp': 'burndown_cache_timestamp'
         }
-        # Initialize execution counter to ensure unique keys
-        if 'js_exec_counter' not in st.session_state:
-            st.session_state.js_exec_counter = 0
+        # Session state will be initialized by app.py before cache manager is used
+        pass
     
     def _execute_js(self, js_code: str) -> Any:
         """Execute JavaScript code and return result."""
@@ -113,7 +112,7 @@ class CacheManager:
             # Check if localStorage is available
             if not test_result or not test_result.get('success'):
                 # Only show warning once per session
-                if 'localStorage_warning_shown' not in st.session_state:
+                if not st.session_state.get('localStorage_warning_shown', False):
                     st.session_state.localStorage_warning_shown = True
                     error_detail = test_result.get('error', 'unknown') if test_result else 'no response'
                     st.info(f"💾 Browser storage not available ({error_detail}) - data won't persist between sessions")
@@ -172,7 +171,7 @@ class CacheManager:
             
             if success_count > 0:
                 # Only show success message once per session  
-                if 'cache_success_shown' not in st.session_state:
+                if not st.session_state.get('cache_success_shown', False):
                     st.session_state.cache_success_shown = True
                     st.toast(f"💾 Data cached for 24h", icon="✅")
                 return True
